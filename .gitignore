@@ -1,0 +1,16 @@
+# Raw data (too large)
+mobility_reports.xlsx
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+*.ipynb
+
+# OS files
+.DS_Store
+Thumbs.db
+```
