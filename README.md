@@ -56,7 +56,7 @@ pip install pandas geopandas shapely plotly streamlit openpyxl
 1. Open **Anaconda Prompt**
 2. Navigate to the project folder:
    ```bash
-   cd C:\Users\YourName\DW_project
+   cd path/to/urban-mobility-dashboard
    ```
 3. Run the app:
    ```bash
