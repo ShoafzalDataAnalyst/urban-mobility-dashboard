@@ -11,69 +11,45 @@ st.set_page_config(page_title="Urban Mobility & Safety Dashboard", layout="wide"
 
 @st.cache_data
 def load_data():
-    df = pd.read_excel("mobility_reports.xlsx")
+    # Load pre-cleaned data (already processed from mobility_reports.xlsx)
+    df = pd.read_csv("cleaned_reports.csv")
 
-    # Parse dates
+    # Parse dates (in case they're stored as strings in CSV)
     df["reported_at"] = pd.to_datetime(df["reported_at"], errors="coerce", utc=True).dt.tz_localize(None)
     df["resolved_at"] = pd.to_datetime(df["resolved_at"], errors="coerce", utc=True).dt.tz_localize(None)
 
-    # Deduplicate by report_id, keep latest
-    df = df.sort_values("reported_at").drop_duplicates("report_id", keep="last")
+    # Recreate engineered columns if not already present
+    if "resolution_days" not in df.columns:
+        today = pd.Timestamp.today()
+        df["resolution_days"] = (df["resolved_at"].fillna(today) - df["reported_at"]).dt.days
 
-    # Normalize issue_type
-    df["issue_type"] = df["issue_type"].str.strip().str.lower()
-    synonyms = {
-        "pothole": "pothole near crossing",
-        "broken light": "broken traffic light",
-        "broken traffic lights": "broken traffic light",
-        "missing signage": "missing sign",
-        "unsafe crosswalk": "unsafe crossing",
-        "bus stop broken": "bus stop damage",
-        "blocked road": "blocked lane",
-        "sidewalk blocked": "sidewalk obstruction",
-    }
-    df["issue_type"] = df["issue_type"].replace(synonyms)
+    if "is_unresolved" not in df.columns:
+        df["is_unresolved"] = df["resolved_at"].isna()
 
-    # Severity to numeric 1–5
-    severity_map = {"low": 1, "medium": 3, "high": 5}
-    df["severity"] = df["severity"].apply(lambda x: severity_map.get(str(x).strip().lower(), x))
-    df["severity"] = pd.to_numeric(df["severity"], errors="coerce").clip(1, 5)
+    if "report_month" not in df.columns:
+        df["report_month"] = df["reported_at"].dt.to_period("M").astype(str)
 
-    # Clean estimated_impact_cost
-    df["estimated_impact_cost"] = (
-        df["estimated_impact_cost"]
-        .astype(str)
-        .str.replace(r"[\$,\s]", "", regex=True)
-    )
-    df["estimated_impact_cost"] = pd.to_numeric(df["estimated_impact_cost"], errors="coerce")
+    if "report_week" not in df.columns:
+        df["report_week"] = df["reported_at"].dt.to_period("W").astype(str)
 
-    # Validate coordinates
-    valid = df["lat"].between(-90, 90) & df["lon"].between(-180, 180)
-    df = df[valid].copy()
+    if "severity_band" not in df.columns:
+        def severity_band(s):
+            if pd.isna(s): return "unknown"
+            if s <= 2: return "low"
+            elif s <= 3: return "medium"
+            else: return "high"
+        df["severity_band"] = df["severity"].apply(severity_band)
 
-    # Feature engineering
-    today = pd.Timestamp.today()
-    df["resolution_days"] = (df["resolved_at"].fillna(today) - df["reported_at"]).dt.days
-    df["is_unresolved"] = df["resolved_at"].isna()
-    df["report_month"] = df["reported_at"].dt.to_period("M").astype(str)
-    df["report_week"] = df["reported_at"].dt.to_period("W").astype(str)
-
-    def severity_band(s):
-        if pd.isna(s): return "unknown"
-        if s <= 2: return "low"
-        elif s <= 3: return "medium"
-        else: return "high"
-
-    df["severity_band"] = df["severity"].apply(severity_band)
-
-    # Spatial join
+    # Load GeoJSON for map (still needed for choropleth)
     gdf = gpd.read_file("districts.geojson")
-    points = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df["lon"], df["lat"]), crs="EPSG:4326")
-    joined = gpd.sjoin(points, gdf[["zone_name", "geometry"]], how="left", predicate="within")
-    df["district"] = joined["zone_name"].values
+
+    # If district column is missing, redo spatial join
+    if "district" not in df.columns:
+        points = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df["lon"], df["lat"]), crs="EPSG:4326")
+        joined = gpd.sjoin(points, gdf[["zone_name", "geometry"]], how="left", predicate="within")
+        df["district"] = joined["zone_name"].values
 
     return df, gdf
-
 
 df, gdf = load_data()
 
