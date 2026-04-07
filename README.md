@@ -1,205 +1,160 @@
-# 📊 Maven Market Sales Analysis — Power BI Dashboard
+# 🚦 Urban Mobility & Safety Dashboard
 
-> A comprehensive business intelligence dashboard analyzing sales performance, customer behavior, and product profitability for Maven Market — a multi-national grocery chain operating across the USA, Canada, and Mexico (1997–1998).
+> Interactive Streamlit dashboard for exploring urban mobility and safety reports across city districts — includes a full data wrangling pipeline, spatial joins, choropleth maps, and dynamic filters.
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white)](https://urban-mobility-dashboard-d7xngh3ylfsdy78kqviufj.streamlit.app/)
 
 ---
 
 ## 📸 Dashboard Preview
 
-![Dashboard Overview](screenshot.png)
+![Dashboard Screenshot](screenshots/screenshot_dashboard.png)
 
 ---
 
-## 🔖 Interactive Bookmarks
+## 📊 Project Overview
 
-This dashboard includes 3 bookmark views navigated via the button panel:
+This project analyzes **22,000+ urban mobility and safety reports** to uncover patterns in issue types, resolution times, geographic distribution, and severity across city districts.
 
-### 📊 Overview (Default)
-Full dashboard showing all 20 product brands, all countries, unfiltered data.
-
-### 🚨 Quality Alert
-![Quality Alert View](quality_alert.png)
-*Filters to brands with return rates above 0.9% — highlights products requiring supplier review.*
-
-### ⭐ Top 5 Performers
-![Top 5 Performers View](top5_performers.png)
-*Filters to the 5 highest-profit brands — combined $150K+ profit, 30% of total.*
+**Key Objectives:**
+- Build a full data wrangling pipeline from raw Excel data
+- Assign reports to districts using spatial joins with GeoJSON boundaries
+- Create an interactive dashboard with dynamic filters and auto-computed insights
+- Enable data export for further analysis
 
 ---
 
-## 📋 Project Overview
+## 🔍 Key Features
 
-| Detail | Info |
+- **KPI Cards** — Total reports, % unresolved, median resolution days, total impact cost
+- **Choropleth Map** — Districts colored by report count, unresolved rate, or median resolution days
+- **Time Series Chart** — Reports grouped by week or month
+- **Top Issue Types** — Bar chart of the 10 most frequent issues
+- **District Comparison** — Unresolved rate by district
+- **Summary Table** — Per-district stats with reports, unresolved %, resolution days, avg severity
+- **Insight Panel** — 3 auto-computed observations from the filtered data
+- **CSV Export** — Download the cleaned filtered dataset
+
+---
+
+## 🛠️ Data Wrangling Pipeline
+
+- Parses `reported_at` and `resolved_at` with mixed timezone handling (`utc=True`)
+- Deduplicates by `report_id`, keeping the latest valid entry
+- Normalizes `issue_type` (lowercase, strip spaces, merge typo variants)
+- Converts `severity` from mixed text/numeric to numeric 1–5 scale
+- Cleans `estimated_impact_cost` by removing `$`, commas, and blanks
+- Validates and drops rows with out-of-range coordinates (lat/lon)
+- Engineers new features: `resolution_days`, `is_unresolved`, `report_week`, `report_month`, `severity_band`
+- Assigns each report to a district via spatial join with `districts.geojson`
+
+---
+
+## 🔧 Sidebar Filters
+
+- Date range on `reported_at`
+- Issue type multi-select
+- District multi-select
+- Unresolved only toggle
+- Severity band selector (low / medium / high)
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Tool |
 |---|---|
-| Tool | Microsoft Power BI Desktop |
-| Dataset | Maven Market (1997–1998) |
-| Records | 269,720 transactions |
-| Countries | USA, Canada, Mexico |
-| Stores | 24 locations |
-| Products | 1,560 items across 20 brands |
+| Language | Python 3.11+ |
+| Dashboard | Streamlit |
+| Data Processing | Pandas |
+| Geospatial | GeoPandas, Shapely |
+| Visualization | Plotly Express |
+| Data Format | Excel, GeoJSON, CSV |
 
 ---
 
-## 🔍 Key Findings
-
-- **Total Revenue:** $1,764,546 across 2 years
-- **Total Transactions:** 269,720
-- **Top Performing Brand:** Hermanos ($33,167 profit, 58.54% margin)
-- **Quality Concern:** Horatio (1.09% return rate — highest above 0.9% threshold)
-- **Revenue Target:** 5% growth target set above current revenue ($1.85M target)
-- **USA Dominance:** $1,177.96K revenue (67% of total)
-
----
-
-## 🗄️ Data Model
-
-Star schema with 2 fact tables and 5 dimension tables.
-
-![Data Model](model_view.png)
-
-| Table | Type | Records | Description |
-|---|---|---|---|
-| Transactions | Fact | 269,720 | All sales transactions |
-| Returns_1997-1998 | Fact | ~5,000 | Product return records |
-| Customers | Dimension | 10,000 | Customer demographics |
-| Products | Dimension | 1,560 | Product catalog & pricing |
-| Stores | Dimension | 24 | Store locations |
-| Regions | Dimension | 5 | Geographic regions |
-| Calendar | Dimension | 730 days | Date table (1997–1998) |
-
-**Relationships:**
-```
-Calendar ──────────────────────────┐
-                                   ▼
-Customers ──────────────────── Transactions ◄──── Returns_1997-1998
-                                   ▲
-Products ──────────────────────────┤
-                                   ▼
-Stores ──────────────────────── Regions
-```
-
----
-
-## 📐 DAX Measures (24 Total)
-
-### Core Metrics
-| Measure | Formula Logic |
-|---|---|
-| Total Revenue | SUMX of quantity × retail price |
-| Total Cost | SUMX of quantity × product cost |
-| Total Profit | Revenue minus cost per transaction |
-| Profit Margin | Profit as % of revenue |
-| Total Transactions | COUNT of all transactions |
-| Quantity Sold | SUM of all units sold |
-
-### Time Intelligence
-| Measure | Description |
-|---|---|
-| Current Month Transactions | MTD transaction count |
-| Current Month Profit | MTD profit |
-| Current Month Returns | MTD returns |
-| Last Month Transactions | Prior month comparison |
-| Last Month Revenue | Prior month comparison |
-| Last Month Profit | Prior month comparison |
-| Last Month Returns | Prior month comparison |
-| YTD Revenue | Year-to-date revenue |
-| 60-Day Revenue | Rolling 60-day window |
-
-### Returns & Performance
-| Measure | Description |
-|---|---|
-| Total Returns | COUNT of return transactions |
-| Quantity Returned | SUM of returned units |
-| Return Rate | Returns divided by quantity sold |
-| All Returns | Returns ignoring filters |
-| All Transactions | Transactions ignoring filters |
-
-### Analysis
-| Measure | Description |
-|---|---|
-| Weekend Transactions | Transactions on weekends only |
-| % Weekend Transactions | Weekend share of total |
-| Unique Products | Distinct product count |
-| Revenue Target | Total revenue × 1.05 |
-
-📄 See `docs/dax_formulas.docx` for full formula code.
-
----
-
-## 🎛️ Dashboard Features
-
-- **Interactive Bookmarks** — 3 views: Overview, Quality Alert, Top 5 Performers
-- **KPI Cards** — Revenue, Transactions, Profit with month-over-month goal comparison
-- **Matrix Table** — Top 20 product brands with conditional formatting
-- **Treemap** — Revenue distribution by country (USA / Mexico / Canada)
-- **Revenue Gauge** — Current revenue vs 5% growth target
-- **Monthly Trend Chart** — Revenue trend across 1998
-- **Country Slicers** — Filter entire dashboard by country
-
----
-
-## 📁 Repository Structure
+## 📁 Project Structure
 
 ```
-maven-market-powerbi/
-├── Maven Market Report.pbix     ← Power BI project file
-├── README.md                    ← This file
-├── screenshot.png               ← Overview dashboard
-├── quality_alert.png            ← Quality Alert bookmark view
-├── top5_performers.png          ← Top 5 Performers bookmark view
-├── model_view.png               ← Data model screenshot
-├── docs/
-│   ├── data_dictionary.docx     ← Column definitions for all tables
-│   └── dax_formulas.docx        ← All 24 DAX measure formulas
-└── data/
-    ├── Transactions/            ← Folder (1997 + 1998 transaction files)
-    ├── MavenMarket_Calendar.csv
-    ├── MavenMarket_Customers.csv
-    ├── MavenMarket_Products.csv
-    ├── MavenMarket_Regions.csv
-    ├── MavenMarket_Returns_1997-1998.csv
-    └── MavenMarket_Stores.csv
+urban-mobility-dashboard/
+├── app.py                    # Main Streamlit application
+├── districts.geojson         # District boundary polygons
+├── cleaned_reports.csv       # Cleaned and processed dataset
+├── requirements.txt          # Python dependencies
+├── README.md                 # This file
+└── screenshots/
+    ├── screenshot_dashboard.png
+    ├── screenshot_filters.png
+    ├── screenshot_kpi.png
+    ├── screenshot_map.png
+    ├── screenshot_charts.png
+    ├── screenshot_district_comparison.png
+    ├── screenshot_table.png
+    └── screenshot_insights.png
 ```
 
 ---
 
-## 🚀 How to Use
+## 📂 Data
 
-### Prerequisites
-- Microsoft Power BI Desktop (free download at powerbi.microsoft.com)
+The raw dataset `mobility_reports.xlsx` is not included in this repository due to file size. The cleaned output `cleaned_reports.csv` is included and contains the result of the full wrangling pipeline.
 
-### Steps
+---
 
-1. **Clone the repository**
+## ▶️ How to Run Locally
+
+### 1. Clone the repository
+
 ```bash
-git clone https://github.com/ShoafzalDataAnalyst/maven-market-powerbi.git
-cd maven-market-powerbi
+git clone https://github.com/ShoafzalDataAnalyst/urban-mobility-dashboard.git
+cd path/to/urban-mobility-dashboard
 ```
 
-2. **Open the report**
-   - Open `Maven Market Report.pbix` in Power BI Desktop
+### 2. Install dependencies
 
-3. **Fix data source paths** (if prompted)
-   - Go to **Home → Transform data**
-   - For each table with a ⚠️ warning, click **Source** in Applied Steps
-   - Update the path to point to the `/data` folder in this repo
-   - For the Transactions table, point to the `/data/Transactions` **folder** (not individual files)
-   - Click **Close & Apply**
+```bash
+pip install -r requirements.txt
+```
 
-4. **Explore the dashboard**
-   - Use the **Overview / Quality Alert / Top 5 Performers** buttons to switch views
-   - Use the **country slicer** (Select all / Canada / Mexico / USA) to filter by region
+Or manually:
+
+```bash
+pip install pandas geopandas shapely plotly streamlit openpyxl
+```
+
+### 3. Run the app
+
+```bash
+python -m streamlit run app.py
+```
+
+The dashboard will open automatically in your browser at `http://localhost:8501`
+
+> ⚠️ Run from Anaconda Prompt or terminal — do NOT run from inside Jupyter Notebook.
 
 ---
 
-## 🛠️ Tools & Skills Demonstrated
+## ✅ What Worked
 
-- **Microsoft Power BI Desktop** — Data modeling, visualization, DAX
-- **Power Query (M)** — Data transformation and cleaning
-- **DAX** — 24 custom measures including time intelligence
-- **Star Schema** — Relational data modeling
-- **Business Intelligence** — KPIs, benchmarks, trend analysis
-- **Data Visualization** — Treemaps, gauge charts, KPI cards, matrix tables
+- Full data cleaning pipeline ran without errors on all 22,000+ rows
+- Spatial join correctly assigned districts using `zone_name` from GeoJSON
+- All 5 sidebar filters dynamically update every dashboard component
+- Choropleth map renders correctly with hover tooltips for all districts
+- Insight panel auto-computes meaningful observations from filtered data
+- `@st.cache_data` prevents reloading/reprocessing data on every interaction
+
+## ⚠️ Known Limitations
+
+- The notebook (`.ipynb`) cannot run Streamlit directly — must be run from terminal as `app.py`
+- Some `issue_type` typo variants may not be covered in all edge cases
+- District assignment relies entirely on coordinates via spatial join (more accurate than text hints)
+- The last week in the time series shows a drop because it is a partial week (data cutoff mid-week)
+
+---
+
+## 🤖 AI Tools Used
+
+**Claude (Anthropic)** was used throughout this project as a coding assistant for generating the initial roadmap, suggesting the data cleaning approach, writing and debugging the full `app.py`, and fixing multiple runtime errors during development. All AI suggestions were reviewed and tested before use.
 
 ---
 
@@ -209,7 +164,3 @@ cd maven-market-powerbi
 - GitHub: [@ShoafzalDataAnalyst](https://github.com/ShoafzalDataAnalyst)
 - LinkedIn: [shoafzal-shomuhidov](https://www.linkedin.com/in/shoafzal-shomuhidov-15b647389/)
 - Email: shomuhidov.shoafzal@gmail.com
-
----
-
-*Dataset provided by Maven Analytics. Project completed as part of a data analytics portfolio.*
